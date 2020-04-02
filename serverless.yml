@@ -1,0 +1,105 @@
+service: rest-api
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-east-1
+  enviornment:
+      DYNAMODB_TABLE: 'NOTES'
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+
+      Resource: "arn:aws:dynamodb:${opt:region,
+      self:provider.region}:*:table/$
+      {self:provider.enviornment.DYNAMODB_TABLE}"
+
+functions:
+  create:
+    handler: handler.create
+    events:
+      - http:
+          path: notes
+          method: post
+          cors: true
+  getOne:
+    handler: handler.getOne
+    events:
+      - http:
+          path: notes/{id}
+          method: get
+          cors: true
+  getAll:
+    handler: handler.getAll
+    events:
+      - http:
+          path: notes
+          method: get
+          cors: true 
+  update:
+    handler: handler.update
+    events:
+      - http:
+          path: notes/{id}
+          method: put 
+          cors: true
+  delete:
+    handler: handler.delete
+    events:
+      - http:
+          path: notes/{id}
+          method: delete 
+          cors: true
+
+  createDynamoDbTable:
+    handler: handler.createDynamoDbTable
+    events:
+      - http:
+          path: dynamodb
+          method: get
+          cors: true                 
+resources:
+  Resources:
+    notesTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain # this means the table will stay on aws regardless if we delete this service
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: ID
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: ID
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'NOTES'
+
+plugins:
+- serverless-dynamodb-local  
+- serverless-offline
+
+custom:
+  dynamodb:
+  # If you only want to use DynamoDB Local in some stages, declare them here
+    stages:
+      - dev
+    start:
+      port: 8000
+      inMemory: true
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true
+      seed: true
+      convertEmptyValues: true
+    # Uncomment only if you already have a DynamoDB running locally
+    # noStart: true
